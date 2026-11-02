@@ -56,7 +56,7 @@ legend{font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
 .chip input:checked+span{background:var(--court);border-color:var(--court);color:var(--surface)}
 .reeksen{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .reeks{position:relative;display:block}
-.reeks span{display:flex;flex-direction:column;gap:2px;height:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg)}
+.reeks>span{display:flex;flex-direction:column;gap:2px;height:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg)}
 .reeks b{font:700 20px/1.1 var(--display)}
 .reeks .dag{font-weight:700;font-size:14px;color:var(--court)}
 .reeks small{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
@@ -76,6 +76,12 @@ legend{font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
 .lijst li.man{color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:4px;border-radius:0 0 6px 6px}
 .lijst li.info{cursor:default;color:var(--muted);font-size:14px}
 .lijst li.info:hover{background:none}
+.lijst li .kl{color:var(--muted);font-variant-numeric:tabular-nums}
+.lijst li.nee{cursor:not-allowed;color:var(--muted)}
+.lijst li.nee:hover{background:none}
+.lijst li.nee .why{display:block;font-size:12px;color:var(--err)}
+.badge.nok{background:var(--err-soft);color:var(--err)}
+#rotatieInfo[data-kind=ok]{border-left-color:var(--turf)}
 .team{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:520px){.team{grid-template-columns:1fr}}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
@@ -115,7 +121,17 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       </section>
 
       <section class="step">
-        <h2><span class="n">1</span>Kapitein</h2>
+        <h2><span class="n">1</span>Reeks en speelmoment</h2>
+        <fieldset id="fsCat"><legend>Categorie</legend><div class="chips" id="categorieen"></div></fieldset>
+        <fieldset id="fsReeks" hidden>
+          <legend>Niveau <span class="hint" style="font-weight:400">· punten = som van de spelers per rotatie</span></legend>
+          <div class="reeksen" id="reeksen"></div>
+        </fieldset>
+        <div class="keuze" id="keuze" hidden aria-live="polite"></div>
+      </section>
+
+      <section class="step">
+        <h2><span class="n">2</span>Kapitein</h2>
         <div id="kapiteinVeld"></div>
         <div class="grid2">
           <div class="f"><label for="email">E-mailadres</label><input type="email" id="email" autocomplete="email" maxlength="120" required></div>
@@ -131,19 +147,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       </section>
 
       <section class="step">
-        <h2><span class="n">2</span>Reeks en speelmoment</h2>
-        <fieldset id="fsCat"><legend>Categorie</legend><div class="chips" id="categorieen"></div></fieldset>
-        <fieldset id="fsReeks" hidden>
-          <legend>Niveau <span class="hint" style="font-weight:400">· punten = som van de spelers per rotatie</span></legend>
-          <div class="reeksen" id="reeksen"></div>
-        </fieldset>
-        <div class="keuze" id="keuze" hidden aria-live="polite"></div>
-      </section>
-
-      <section class="step">
         <h2><span class="n">3</span>Teamgenoten</h2>
-        <p class="hint" id="teamHint">Zoek elke speler in de ledenlijst. Staat iemand er niet in, kies dan "manueel invullen". Minstens 5 teamgenoten naast jezelf, maximaal 7.</p>
+        <p class="hint" id="teamHint">Zoek elke speler in de ledenlijst. Je kan enkel spelers kiezen die volgens het reglement speelgerechtigd zijn in de gekozen reeks (klassement en categorie). Staat iemand er niet in, kies dan "manueel invullen". Minstens 5 teamgenoten naast jezelf, maximaal 7.</p>
         <div class="team" id="team"></div>
+        <div class="notice" id="rotatieInfo" hidden aria-live="polite"></div>
         <div class="f"><label for="opmerking">Opmerking <span class="opt">(optioneel)</span></label><textarea id="opmerking" maxlength="500" placeholder="Bv. ploeg van vorig seizoen, nieuwe leden in de ploeg"></textarea></div>
         <div class="hp" aria-hidden="true"><label>Website<input type="text" id="website" tabindex="-1" autocomplete="off"></label></div>
       </section>
@@ -209,8 +216,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   const catKey = r => r.competitie + "|" + r.categorie;
 
   /* ---------- Ledenzoeker ---------- */
+  const huidigeReeks = () => { const r = document.querySelector("input[name=reeks]:checked"); return r ? r.value : null; };
+  const punten = k => { const m = /(\d+)/.exec(k||""); return m ? parseInt(m[1],10) : null; };
   function ledenVeld(id, label, verplicht){
-    const st = { id:id, speler_id:null, naam:"", modus:"zoek" }; // modus: zoek | lid | manueel
+    const st = { id:id, speler_id:null, naam:"", modus:"zoek", klassement:null, ongeldig:null }; // modus: zoek | lid | manueel
     const wrap = el("div",{class:"f lid"});
     const lab = el("label",{for:id}); lab.textContent = label + " ";
     if(!verplicht) lab.appendChild(el("span",{class:"opt",text:"(optioneel)"}));
@@ -223,20 +232,32 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 
     let timer = null, ctrl = null, items = [], actief = -1;
     function sluit(){ lijst.hidden = true; inp.setAttribute("aria-expanded","false"); actief = -1; }
-    function zet(modus, naam, sid){
-      st.modus = modus; st.naam = naam; st.speler_id = sid;
+    function toonStatus(){
+      if(st.modus!=="lid") return;
+      badge.hidden = false;
+      if(st.ongeldig){ badge.className = "badge nok"; badge.textContent = "Niet speelgerechtigd in deze reeks: " + st.ongeldig; }
+      else { badge.className = "badge ok"; badge.textContent = "Lid " + (periode ? periode.leden_jaar : "") + (st.klassement ? " · " + st.klassement : ""); }
+    }
+    st.markeer = (ok, reden, kl) => { st.ongeldig = ok ? null : (reden || "niet speelgerechtigd"); if(kl) st.klassement = kl; toonStatus(); };
+    function zet(modus, naam, sid, kl){
+      st.modus = modus; st.naam = naam; st.speler_id = sid; st.klassement = kl || null; st.ongeldig = null;
       inp.value = naam; inp.removeAttribute("aria-invalid");
-      if(modus==="lid"){ inp.readOnly = true; wis.hidden = false; badge.hidden = false; badge.className = "badge ok"; badge.textContent = "Lid " + (periode ? periode.leden_jaar : ""); }
+      if(modus==="lid"){ inp.readOnly = true; wis.hidden = false; toonStatus(); }
       else if(modus==="manueel"){ inp.readOnly = false; wis.hidden = false; badge.hidden = false; badge.className = "badge man"; badge.textContent = "Manueel ingevuld, wordt nagekeken"; inp.placeholder = "Naam + voornaam"; }
       else { inp.readOnly = false; wis.hidden = true; badge.hidden = true; inp.placeholder = "Typ minstens 3 letters van de naam"; }
-      sluit();
+      sluit(); rotatieCheck();
     }
     function toon(res, q){
       lijst.textContent = ""; items = [];
       if(res.length===0) lijst.appendChild(el("li",{class:"info",text:"Geen lid gevonden met “" + q + "”."}));
       res.forEach((r,i) => {
-        const li = el("li",{role:"option",id:id+"-o"+i,"aria-selected":"false",text:r.naam});
-        li.addEventListener("mousedown", e => { e.preventDefault(); zet("lid", r.naam, r.speler_id); });
+        const kl = r.klassement ? el("span",{class:"kl",text:" · " + r.klassement}) : null;
+        if(!r.speelgerechtigd){
+          lijst.appendChild(el("li",{class:"nee","aria-disabled":"true"}, document.createTextNode(r.naam), kl, el("span",{class:"why",text:"Niet speelgerechtigd: " + (r.reden||"")})));
+          return;
+        }
+        const li = el("li",{role:"option",id:id+"-o"+i,"aria-selected":"false"}, document.createTextNode(r.naam), kl);
+        li.addEventListener("mousedown", e => { e.preventDefault(); zet("lid", r.naam, r.speler_id, r.klassement); });
         lijst.appendChild(li); items.push(li);
       });
       const man = el("li",{role:"option",class:"man",id:id+"-om","aria-selected":"false",text:"Niet gevonden? “" + q + "” manueel invullen"});
@@ -250,9 +271,14 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       clearTimeout(timer); if(ctrl) ctrl.abort();
       const q = inp.value.trim();
       if(q.replace(/\s/g,"").length < 3){ sluit(); return; }
+      if(!huidigeReeks()){
+        lijst.textContent = ""; items = [];
+        lijst.appendChild(el("li",{class:"info",text:"Kies eerst een reeks bovenaan. Dan zie je meteen wie speelgerechtigd is."}));
+        lijst.hidden = false; inp.setAttribute("aria-expanded","true"); return;
+      }
       timer = setTimeout(async () => {
         ctrl = new AbortController();
-        try{ const res = await rpc("inschrijving_zoek_lid", {p_periode_id: periode.id, p_zoek: q}, ctrl.signal); if(inp.value.trim()===q) toon(res||[], q); }
+        try{ const res = await rpc("inschrijving_zoek_lid_v2", {p_periode_id: periode.id, p_zoek: q, p_reeks: huidigeReeks()}, ctrl.signal); if(inp.value.trim()===q) toon(res||[], q); }
         catch(e){ if(e.name!=="AbortError"){ lijst.textContent=""; lijst.appendChild(el("li",{class:"info",text:"Zoeken lukt niet. Kies manueel invullen."})); items=[]; const man=el("li",{role:"option",class:"man",text:"Manueel invullen"}); man.addEventListener("mousedown",ev=>{ev.preventDefault();zet("manueel",inp.value.trim(),null);}); lijst.appendChild(man); items.push(man); lijst.hidden=false; } }
       }, 250);
     });
@@ -299,7 +325,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     const box = $("reeksen"); box.textContent = ""; $("keuze").hidden = true;
     periode.reeksen.filter(r => catKey(r)===gekozenCat).forEach((r,i) => {
       const inp = el("input",{type:"radio",name:"reeks",id:"reeks"+i,value:r.reeks});
-      inp.addEventListener("change", () => toonKeuze(r));
+      inp.addEventListener("change", () => { toonKeuze(r); herControle(); });
       box.appendChild(el("label",{class:"reeks"}, inp, el("span",{},
         el("b",{text:reeksNaam(r)}),
         el("span",{class:"dag",text:r.dag_uur || "Speelmoment volgt"}),
@@ -317,6 +343,31 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       k.append(". Controleer of je ploeg dan beschikbaar is.");
     } else k.append(". Het speelmoment wordt later bevestigd.");
     k.hidden = false;
+  }
+
+  /* ---------- Speelgerechtigdheid ---------- */
+  const alleVelden = () => [kapiteinVeld, ...team].filter(Boolean);
+  async function herControle(){
+    const reeks = huidigeReeks(); if(!reeks) return;
+    await Promise.all(alleVelden().filter(v => v.modus==="lid").map(async v => {
+      try{
+        const res = await rpc("inschrijving_zoek_lid_v2", {p_periode_id: periode.id, p_zoek: v.naam, p_reeks: reeks});
+        const m = (res||[]).find(x => x.speler_id===v.speler_id);
+        if(m && huidigeReeks()===reeks) v.markeer(m.speelgerechtigd, m.reden, m.klassement);
+      }catch(_){}
+    }));
+    rotatieCheck();
+  }
+  function rotatieCheck(){
+    const box = $("rotatieInfo"); if(!box) return;
+    const rid = huidigeReeks(); const r = rid && periode ? periode.reeksen.find(x => x.reeks===rid) : null;
+    const pts = alleVelden().filter(v => v.modus==="lid" && !v.ongeldig).map(v => punten(v.klassement)).filter(x => x != null);
+    if(!r || pts.length < 4){ box.hidden = true; return; }
+    let ok = 0, tot = 0; const n = pts.length;
+    for(let a=0;a<n;a++)for(let b=a+1;b<n;b++)for(let c=b+1;c<n;c++)for(let d=c+1;d<n;d++){ tot++; const s = pts[a]+pts[b]+pts[c]+pts[d]; if(s>=r.punten_min && s<=r.punten_max) ok++; }
+    box.hidden = false;
+    if(ok===0){ box.removeAttribute("data-kind"); box.textContent = "Let op: met de gekozen spelers ligt geen enkele rotatie van 4 spelers tussen " + r.punten_min + " en " + r.punten_max + " punten, zoals het reglement vraagt (art. 6.6). Controleer je ploeg of kies een andere reeks."; }
+    else { box.setAttribute("data-kind","ok"); box.textContent = ok + " van de " + tot + " mogelijke rotaties van 4 gekoppelde spelers liggen binnen " + r.punten_min + "–" + r.punten_max + " punten."; }
   }
 
   /* ---------- Team ---------- */
@@ -350,6 +401,8 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 
     if(!kap || kap.naam.length < 3) return fout("Zoek je naam in de ledenlijst of vul ze manueel in.", kapiteinVeld.input);
     if(kap.open) return fout("Kies je naam uit de lijst, of kies “manueel invullen” als je er niet in staat.", kapiteinVeld.input);
+    const ongeldig = alleVelden().find(v => v.modus==="lid" && v.ongeldig);
+    if(ongeldig) return fout(ongeldig.naam + " is niet speelgerechtigd in deze reeks (" + ongeldig.ongeldig + "). Kies een andere reeks of een andere speler.", ongeldig.input);
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fout("Vul een geldig e-mailadres in.", $("email"));
     if(!leider) return fout("Duid aan of je de opleiding Interclubleider gevolgd hebt.", $("leiderJa"));
     if(!reeks) return fout(gekozenCat ? "Kies een niveau." : "Kies een categorie en een niveau.", document.querySelector(gekozenCat ? "input[name=reeks]" : "input[name=categorie]"));
