@@ -218,8 +218,9 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   /* ---------- Ledenzoeker ---------- */
   const huidigeReeks = () => { const r = document.querySelector("input[name=reeks]:checked"); return r ? r.value : null; };
   const punten = k => { const m = /(\d+)/.exec(k||""); return m ? parseInt(m[1],10) : null; };
-  function ledenVeld(id, label, verplicht){
-    const st = { id:id, speler_id:null, naam:"", modus:"zoek", klassement:null, ongeldig:null }; // modus: zoek | lid | manueel
+  function ledenVeld(id, label, verplicht, blokkeer){
+    // blokkeer=false voor de kapitein: niet speelgerechtigd is dan enkel een vermelding
+    const st = { id:id, speler_id:null, naam:"", modus:"zoek", klassement:null, ongeldig:null, blokkeer:blokkeer }; // modus: zoek | lid | manueel
     const wrap = el("div",{class:"f lid"});
     const lab = el("label",{for:id}); lab.textContent = label + " ";
     if(!verplicht) lab.appendChild(el("span",{class:"opt",text:"(optioneel)"}));
@@ -235,7 +236,8 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     function toonStatus(){
       if(st.modus!=="lid") return;
       badge.hidden = false;
-      if(st.ongeldig){ badge.className = "badge nok"; badge.textContent = "Niet speelgerechtigd in deze reeks: " + st.ongeldig; }
+      if(st.ongeldig && !blokkeer){ badge.className = "badge man"; badge.textContent = "Lid " + (periode ? periode.leden_jaar : "") + (st.klassement ? " · " + st.klassement : "") + " · niet speelgerechtigd in deze reeks (" + st.ongeldig + "). Geen probleem als je zelf niet meespeelt."; }
+      else if(st.ongeldig){ badge.className = "badge nok"; badge.textContent = "Niet speelgerechtigd in deze reeks: " + st.ongeldig; }
       else { badge.className = "badge ok"; badge.textContent = "Lid " + (periode ? periode.leden_jaar : "") + (st.klassement ? " · " + st.klassement : ""); }
     }
     st.markeer = (ok, reden, kl) => { st.ongeldig = ok ? null : (reden || "niet speelgerechtigd"); if(kl) st.klassement = kl; toonStatus(); };
@@ -252,12 +254,13 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       if(res.length===0) lijst.appendChild(el("li",{class:"info",text:"Geen lid gevonden met “" + q + "”."}));
       res.forEach((r,i) => {
         const kl = r.klassement ? el("span",{class:"kl",text:" · " + r.klassement}) : null;
-        if(!r.speelgerechtigd){
+        if(!r.speelgerechtigd && blokkeer){
           lijst.appendChild(el("li",{class:"nee","aria-disabled":"true"}, document.createTextNode(r.naam), kl, el("span",{class:"why",text:"Niet speelgerechtigd: " + (r.reden||"")})));
           return;
         }
-        const li = el("li",{role:"option",id:id+"-o"+i,"aria-selected":"false"}, document.createTextNode(r.naam), kl);
-        li.addEventListener("mousedown", e => { e.preventDefault(); zet("lid", r.naam, r.speler_id, r.klassement); });
+        const li = el("li",{role:"option",id:id+"-o"+i,"aria-selected":"false"}, document.createTextNode(r.naam), kl,
+          !r.speelgerechtigd ? el("span",{class:"kl",text:" · niet speelgerechtigd in deze reeks"}) : null);
+        li.addEventListener("mousedown", e => { e.preventDefault(); zet("lid", r.naam, r.speler_id, r.klassement); st.markeer(r.speelgerechtigd, r.reden, r.klassement); });
         lijst.appendChild(li); items.push(li);
       });
       const man = el("li",{role:"option",class:"man",id:id+"-om","aria-selected":"false",text:"Niet gevonden? “" + q + "” manueel invullen"});
@@ -374,10 +377,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   let kapiteinVeld;
   function bouwVelden(){
     $("kapiteinVeld").textContent = "";
-    kapiteinVeld = ledenVeld("kapitein","Jouw naam (kapitein)",true);
+    kapiteinVeld = ledenVeld("kapitein","Jouw naam (kapitein)",true,false);
     $("kapiteinVeld").appendChild(kapiteinVeld.el);
     const box = $("team"); box.textContent = ""; team.length = 0;
-    for(let i=1;i<=MAX_TEAM;i++){ const v = ledenVeld("tg"+i,"Teamgenoot " + i, i<=MIN_TEAM); team.push(v); box.appendChild(v.el); }
+    for(let i=1;i<=MAX_TEAM;i++){ const v = ledenVeld("tg"+i,"Teamgenoot " + i, i<=MIN_TEAM, true); team.push(v); box.appendChild(v.el); }
   }
 
   /* ---------- Verzenden ---------- */
@@ -401,7 +404,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 
     if(!kap || kap.naam.length < 3) return fout("Zoek je naam in de ledenlijst of vul ze manueel in.", kapiteinVeld.input);
     if(kap.open) return fout("Kies je naam uit de lijst, of kies “manueel invullen” als je er niet in staat.", kapiteinVeld.input);
-    const ongeldig = alleVelden().find(v => v.modus==="lid" && v.ongeldig);
+    const ongeldig = alleVelden().find(v => v.blokkeer && v.modus==="lid" && v.ongeldig);
     if(ongeldig) return fout(ongeldig.naam + " is niet speelgerechtigd in deze reeks (" + ongeldig.ongeldig + "). Kies een andere reeks of een andere speler.", ongeldig.input);
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fout("Vul een geldig e-mailadres in.", $("email"));
     if(!leider) return fout("Duid aan of je de opleiding Interclubleider gevolgd hebt.", $("leiderJa"));
@@ -439,7 +442,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     [["Interclub", periode.seizoen + " " + periode.jaar],
      ["Reeks", (CAT_NAAM[r.categorie]||r.categorie) + " " + reeksNaam(r) + " (" + r.punten_min + "–" + r.punten_max + " ptn)"],
      ["Speelmoment", r.dag_uur || "volgt"],
-     ["Kapitein", res.kapitein_naam],
+     ["Kapitein", res.kapitein_naam + (res.kapitein_speelgerechtigd===false ? " (niet speelgerechtigd in deze reeks, ter info)" : "")],
      ["Spelers", String(spelers)]].forEach(([k,v]) => { sum.appendChild(el("dt",{text:k})); sum.appendChild(el("dd",{text:v})); });
     if(res.mollie_link){
       let tekst = "Betaal het inschrijvingsgeld via Mollie en vermeld referentie " + res.referentie + ".";
