@@ -82,6 +82,10 @@ legend{font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
 .lijst li.nee .why{display:block;font-size:12px;color:var(--err)}
 .badge.nok{background:var(--err-soft);color:var(--err)}
 #rotatieInfo[data-kind=ok]{border-left-color:var(--turf)}
+.notice.sim{border-left-color:var(--court);background:var(--court-soft)}
+#simUitkomst[data-kind=ok]{border-left-color:var(--turf);background:var(--turf-soft)}
+#simUitkomst[data-kind=err]{border-left-color:var(--err);background:var(--err-soft)}
+button.sim-ok{background:var(--turf);font-size:16px;padding:10px 14px}
 .team{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:520px){.team{grid-template-columns:1fr}}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
@@ -108,6 +112,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     <p class="lead">Kapiteins schrijven hier hun ploeg in. Eén formulier per ploeg. Je krijgt na het verzenden een referentie voor de betaling en opvolging.</p>
   </header>
 
+  <div id="simBanner" class="notice sim" hidden><strong>Simulatie.</strong> Er wordt niets opgeslagen en niets betaald. Het inschrijvingsgeld is een voorbeeldbedrag zolang het bestuur geen bedrag heeft vastgelegd.</div>
   <div id="laden" class="notice">Inschrijvingen laden…</div>
   <div id="fout" class="notice" data-kind="err" hidden></div>
 
@@ -176,6 +181,19 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     <button type="button" class="ghost" id="nogEen">Nog een ploeg inschrijven</button>
   </section>
 
+  <section class="step" id="simKassa" hidden aria-live="polite">
+    <h2><span class="n">€</span>Gesimuleerde betaalpagina</h2>
+    <p class="hint">Zo ziet de kapitein de betaling in grote lijnen. In het echt opent hier de betaalpagina van de betaalprovider in een nieuw venster.</p>
+    <dl class="sum" id="simSamenvatting"></dl>
+    <div class="chips" role="group" aria-label="Uitkomst van de simulatie">
+      <button type="button" class="primary sim-ok" id="simBetaald">Betaling geslaagd</button>
+      <button type="button" class="ghost" id="simMislukt">Betaling mislukt</button>
+      <button type="button" class="ghost" id="simAnnuleer">Annuleren</button>
+    </div>
+    <div class="notice" id="simUitkomst" hidden></div>
+    <p class="hint" id="simUitleg" hidden></p>
+  </section>
+
   <footer>Padelcommissie BTC Wemmel</footer>
 </main>
 
@@ -185,6 +203,8 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   const SUPABASE_URL = "https://povgjkvmzfrhhaxfanwn.supabase.co";
   const SUPABASE_KEY = "sb_publishable_LfcbY6X1DgOBFW1rH3Umnw__RdObpur"; // publieke sleutel: enkel toegang tot de inschrijvingsfuncties
   const MIN_TEAM = 5, MAX_TEAM = 7;
+  const SIM = new URLSearchParams(location.search).has("simulatie");
+  const SIM_BEDRAG = 25; // voorbeeldbedrag per ploeg zolang er geen bedrag is vastgelegd
   const CAT_NAAM = {"PADEL OPEN":"Open","PADEL DAMES":"Dames","PADEL GEMENGD":"Gemengd","PADEL OPEN 40":"Open 40+","PADEL DAMES 40":"Dames 40+"};
   const $ = id => document.getElementById(id);
   let periodes = [], periode = null, gekozenCat = null;
@@ -421,6 +441,23 @@ footer{font-size:13px;color:var(--muted);text-align:center}
     const alle = [kap.speler_id, ...ids].filter(x => x != null);
     if(new Set(alle).size !== alle.length) return fout("Dezelfde speler staat er meer dan één keer in.");
 
+    if(SIM){
+      // zelfde opbouw als in de database: P(adel)IC + jaar + V/N - reeks+categorie - initialen
+      const rr = periode.reeksen.find(x => x.reeks===reeks.value);
+      const cat = {"PADEL OPEN":"O","PADEL DAMES":"D","PADEL GEMENGD":"G","PADEL OPEN 40":"O40","PADEL DAMES 40":"D40"}[rr.categorie] || "X";
+      const afd = /^\d{2,}$/.test(rr.afdeling) ? "P" + rr.afdeling : "R" + rr.afdeling;
+      const w = kap.naam.normalize("NFD").replace(/[̀-ͯ]/g,"").trim().split(/\s+/);
+      let init = ((w[w.length-1]||"")[0]||"") + (w.length>1 ? (w[0][0]||"") : "");
+      init = /^[A-Za-z]{1,2}$/.test(init) ? init.toUpperCase() : "XX";
+      toonKlaar({
+        referentie: "PIC" + String(periode.jaar).slice(-2) + periode.seizoen[0] + "-" + afd + cat + "-" + init, kapitein_naam: kap.naam,
+        kapitein_speelgerechtigd: kap.speler_id ? !kapiteinVeld.ongeldig : null,
+        bedrag_eur: periode.bedrag_eur != null ? periode.bedrag_eur : SIM_BEDRAG,
+        bedrag_per: periode.bedrag_per || "ploeg",
+        mollie_link: "#simulatie", voorbeeld: periode.bedrag_eur == null
+      }, reeks.value, namen.length + 1);
+      return;
+    }
     const knop = $("verzend"); knop.disabled = true; knop.textContent = "Bezig met verzenden…";
     try{
       const res = await rpc("inschrijving_toevoegen_v2", {
@@ -450,11 +487,53 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         const totaal = res.bedrag_per==="speler" ? res.bedrag_eur * spelers : res.bedrag_eur;
         tekst = "Te betalen: " + euro(totaal) + (res.bedrag_per==="speler" ? " (" + spelers + " spelers × " + euro(res.bedrag_eur) + ")" : "") + ". " + tekst;
       }
+      if(res.voorbeeld) tekst += " (Voorbeeldbedrag: het echte bedrag beslist het bestuur.)";
       $("betaalTekst").textContent = tekst; $("betaalLink").href = res.mollie_link;
+      laatste = {res:res, spelers:spelers, reeks:r};
       $("betaal").hidden = false; $("geenBetaling").hidden = true;
     } else { $("betaal").hidden = true; $("geenBetaling").hidden = false; }
     $("form").hidden = true; $("klaar").hidden = false; window.scrollTo({top:0, behavior:"smooth"});
   }
+
+  /* ---------- Simulatie betaling ---------- */
+  let laatste = null;
+  $("betaalLink").addEventListener("click", e => {
+    if(!SIM || !laatste) return;
+    e.preventDefault();
+    const {res, spelers, reeks} = laatste;
+    const totaal = res.bedrag_per==="speler" ? res.bedrag_eur * spelers : res.bedrag_eur;
+    const sum = $("simSamenvatting"); sum.textContent = "";
+    $("simKassa").querySelectorAll(".herstart").forEach(b => b.remove());
+    [["Begunstigde","BTC Wemmel"],
+     ["Omschrijving","Interclub " + periode.seizoen.toLowerCase() + " " + periode.jaar + " · " + (CAT_NAAM[reeks.categorie]||reeks.categorie) + " " + reeksNaam(reeks) + " · " + res.referentie],
+     ["Bedrag", euro(totaal) + (res.bedrag_per==="speler" ? " (" + spelers + " × " + euro(res.bedrag_eur) + ")" : "") + (res.voorbeeld ? " · voorbeeld" : "")],
+     ["Betaalwijzen","zoals ingesteld bij de betaalprovider"]]
+      .forEach(([k,v]) => { sum.appendChild(el("dt",{text:k})); sum.appendChild(el("dd",{text:v})); });
+    $("simUitkomst").hidden = true; $("simUitleg").hidden = true;
+    ["simBetaald","simMislukt","simAnnuleer"].forEach(id => $(id).disabled = false);
+    $("simKassa").hidden = false; $("simKassa").scrollIntoView({behavior:"smooth", block:"start"});
+  });
+  function simUitkomst(soort){
+    const u = $("simUitkomst"), x = $("simUitleg"), ref = laatste ? laatste.res.referentie : "";
+    ["simBetaald","simMislukt","simAnnuleer"].forEach(id => $(id).disabled = true);
+    if(soort==="ok"){
+      u.dataset.kind = "ok"; u.textContent = "Betaling geslaagd. De kapitein keert terug naar de bevestiging. Referentie " + ref + ".";
+      x.textContent = "In het echt: met een gewone betaallink ziet de commissie de betaling in het overzicht van de betaalprovider en zet ze de betaalstatus van " + ref + " op “betaald”. Automatisch bijwerken kan later met een koppeling (webhook).";
+    } else if(soort==="mislukt"){
+      u.dataset.kind = "err"; u.textContent = "Betaling mislukt. De inschrijving blijft staan met betaalstatus “open”.";
+      x.textContent = "De kapitein kan opnieuw betalen via dezelfde knop. De commissie ziet in het overzicht welke ploegen nog niet betaald hebben.";
+    } else {
+      u.dataset.kind = "err"; u.textContent = "Betaling geannuleerd. De inschrijving blijft staan met betaalstatus “open”.";
+      x.textContent = "De kapitein kan later betalen. Vermeld dan referentie " + ref + ".";
+    }
+    u.hidden = false; x.hidden = false;
+    const opnieuw = el("button",{type:"button",class:"ghost herstart",text:"Simulatie opnieuw"});
+    opnieuw.addEventListener("click", () => { opnieuw.remove(); $("betaalLink").click(); });
+    x.after(opnieuw);
+  }
+  $("simBetaald").addEventListener("click", () => simUitkomst("ok"));
+  $("simMislukt").addEventListener("click", () => simUitkomst("mislukt"));
+  $("simAnnuleer").addEventListener("click", () => simUitkomst("annuleer"));
 
   $("kopieer").addEventListener("click", async () => {
     try{ await navigator.clipboard.writeText($("refCode").textContent); $("kopieer").textContent = "Gekopieerd"; }
@@ -462,11 +541,12 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   });
   $("nogEen").addEventListener("click", () => {
     $("form").reset(); bouwVelden(); toonPeriode(periode);
-    $("klaar").hidden = true; $("form").hidden = false; $("kopieer").textContent = "Kopieer referentie"; window.scrollTo({top:0});
+    $("klaar").hidden = true; $("simKassa").hidden = true; $("form").hidden = false; $("kopieer").textContent = "Kopieer referentie"; window.scrollTo({top:0});
   });
   $("form").addEventListener("submit", verzend);
 
   (async function start(){
+    if(SIM){ $("simBanner").hidden = false; $("verzend").textContent = "Ploeg inschrijven (simulatie)"; }
     try{
       periodes = await rpc("inschrijving_config");
       $("laden").hidden = true;
