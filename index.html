@@ -22,6 +22,7 @@
   --court:#7fb0f0; --court-soft:#1c2c42; --turf:#6cc893; --warn:#e3a35e; --err:#ff8a80; --err-soft:#3a1c1a;
   color-scheme:dark;}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
@@ -38,7 +39,7 @@ section.step{background:var(--surface);border:1px solid var(--line);border-radiu
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:520px){.grid2{grid-template-columns:1fr}}
 label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px;min-width:0}
-label.f .opt{font-weight:400;color:var(--muted)}
+label.f .opt{font-weight:400;color:var(--muted);margin-top:-4px}
 input[type=text],input[type=email],input[type=tel],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px;width:100%}
 textarea{min-height:76px;resize:vertical}
 input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible,.chip input:focus-visible+span,.reeks input:focus-visible+span{outline:3px solid var(--court);outline-offset:2px}
