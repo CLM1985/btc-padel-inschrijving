@@ -9,17 +9,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap">
 <style>
-/* Layout: één smalle kolom zoals een wedstrijdblad; secties als genummerde stappen, reekskeuze als terreinkaarten. */
+/* Layout: één smalle kolom zoals een wedstrijdblad; secties als stappen, reekskeuze als kaarten met speelmoment. */
 :root{
   --bg:#f3f5f7; --surface:#ffffff; --ink:#15202b; --muted:#5b6876; --line:#d6dde4;
-  --court:#1d4f91; --court-soft:#e3ecf8; --turf:#2f7d4f; --warn:#a4550c; --err:#b3261e; --err-soft:#fbe9e7;
+  --court:#1d4f91; --court-soft:#e3ecf8; --turf:#2f7d4f; --turf-soft:#e3f2e8; --warn:#a4550c; --warn-soft:#fbefe2; --err:#b3261e; --err-soft:#fbe9e7;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"Source Sans 3","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){:root{
   --bg:#0f151c; --surface:#17202a; --ink:#e7edf3; --muted:#9aa8b6; --line:#2b3845;
-  --court:#7fb0f0; --court-soft:#1c2c42; --turf:#6cc893; --warn:#e3a35e; --err:#ff8a80; --err-soft:#3a1c1a;
+  --court:#7fb0f0; --court-soft:#1c2c42; --turf:#6cc893; --turf-soft:#173025; --warn:#e3a35e; --warn-soft:#3a2a17; --err:#ff8a80; --err-soft:#3a1c1a;
   color-scheme:dark;}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -31,19 +31,21 @@ header{display:flex;flex-direction:column;gap:6px}
 .club{font:600 13px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--court)}
 h1{font:700 clamp(30px,6vw,40px)/1.05 var(--display);margin:0;text-wrap:balance;letter-spacing:.01em}
 .lead{margin:0;color:var(--muted);max-width:60ch}
-.notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);padding:10px 14px;border-radius:6px;font-size:14px;color:var(--ink)}
+.notice{border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);padding:10px 14px;border-radius:6px;font-size:14px}
 .notice[data-kind=err]{border-left-color:var(--err);background:var(--err-soft)}
 section.step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px}
 .step h2{margin:0;font:700 22px/1.1 var(--display);display:flex;gap:10px;align-items:baseline}
 .step h2 .n{font:700 15px/1 var(--display);color:var(--court);border:2px solid var(--court);border-radius:50%;width:26px;height:26px;display:inline-grid;place-items:center;flex:none}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:520px){.grid2{grid-template-columns:1fr}}
-label.f{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px;min-width:0}
-label.f .opt{font-weight:400;color:var(--muted);margin-top:-4px}
-input[type=text],input[type=email],input[type=tel],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px;width:100%}
+.f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.f>label,.lbl{font-weight:600;font-size:14px}
+.opt{font-weight:400;color:var(--muted)}
+input[type=text],input[type=email],input[type=tel],textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 11px;width:100%}
+input[readonly]{background:var(--surface)}
 textarea{min-height:76px;resize:vertical}
-input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible,.chip input:focus-visible+span,.reeks input:focus-visible+span{outline:3px solid var(--court);outline-offset:2px}
-input[aria-invalid=true],textarea[aria-invalid=true]{border-color:var(--err)}
+input:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible,.chip input:focus-visible+span,.reeks input:focus-visible+span{outline:3px solid var(--court);outline-offset:2px}
+[aria-invalid=true]{border-color:var(--err)!important}
 .hint{font-size:13px;color:var(--muted);margin:0}
 fieldset{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:8px}
 legend{font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
@@ -52,20 +54,36 @@ legend{font-weight:600;font-size:14px;padding:0;margin-bottom:6px}
 .chip input,.reeks input{position:absolute;opacity:0;pointer-events:none}
 .chip span{display:inline-block;padding:7px 14px;border:1px solid var(--line);border-radius:999px;cursor:pointer;font-weight:600;font-size:14px;background:var(--bg)}
 .chip input:checked+span{background:var(--court);border-color:var(--court);color:var(--surface)}
-.reeksen{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+.reeksen{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .reeks{position:relative;display:block}
 .reeks span{display:flex;flex-direction:column;gap:2px;height:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:var(--bg)}
 .reeks b{font:700 20px/1.1 var(--display)}
+.reeks .dag{font-weight:700;font-size:14px;color:var(--court)}
 .reeks small{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
 .reeks input:checked+span{border-color:var(--court);background:var(--court-soft);box-shadow:inset 0 0 0 1px var(--court)}
-.team{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.keuze{border:1px solid var(--court);background:var(--court-soft);border-radius:8px;padding:10px 12px;font-size:15px}
+.keuze strong{font-weight:700}
+/* ledenzoeker */
+.lid{position:relative}
+.lid .rij{display:flex;gap:6px;align-items:stretch}
+.lid .rij input{flex:1;min-width:0}
+.lid .badge{font-size:12px;font-weight:700;border-radius:999px;padding:2px 8px;align-self:flex-start}
+.badge.ok{background:var(--turf-soft);color:var(--turf)}
+.badge.man{background:var(--warn-soft);color:var(--warn)}
+.lijst{position:absolute;z-index:5;left:0;right:0;top:100%;margin:4px 0 0;padding:4px;list-style:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.12);max-height:280px;overflow:auto}
+.lijst li{padding:8px 10px;border-radius:6px;cursor:pointer;font-size:15px}
+.lijst li[aria-selected=true],.lijst li:hover{background:var(--court-soft)}
+.lijst li.man{color:var(--muted);font-size:14px;border-top:1px solid var(--line);margin-top:4px;border-radius:0 0 6px 6px}
+.lijst li.info{cursor:default;color:var(--muted);font-size:14px}
+.lijst li.info:hover{background:none}
+.team{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:520px){.team{grid-template-columns:1fr}}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 .actions{display:flex;flex-direction:column;gap:10px}
 button.primary,a.btn{appearance:none;border:0;border-radius:8px;background:var(--court);color:var(--surface);font:700 18px/1 var(--display);letter-spacing:.04em;text-transform:uppercase;padding:14px 18px;cursor:pointer;text-align:center;text-decoration:none;display:inline-block}
 button.primary[disabled]{opacity:.55;cursor:progress}
 a.btn.pay{background:var(--turf)}
-button.ghost{appearance:none;background:none;border:1px solid var(--line);border-radius:6px;color:var(--ink);font:600 14px var(--body);padding:6px 10px;cursor:pointer}
+button.ghost{appearance:none;background:var(--surface);border:1px solid var(--line);border-radius:6px;color:var(--ink);font:600 14px var(--body);padding:6px 10px;cursor:pointer}
 .err{color:var(--err);font-size:14px;margin:0}
 .done{display:flex;flex-direction:column;gap:14px}
 .ref{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -87,7 +105,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   <div id="laden" class="notice">Inschrijvingen laden…</div>
   <div id="fout" class="notice" data-kind="err" hidden></div>
 
-  <form id="form" novalidate hidden>
+  <form id="form" novalidate hidden autocomplete="off">
     <div class="wrap" style="gap:16px">
       <div id="periodeInfo" class="notice" hidden></div>
 
@@ -98,10 +116,10 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 
       <section class="step">
         <h2><span class="n">1</span>Kapitein</h2>
+        <div id="kapiteinVeld"></div>
         <div class="grid2">
-          <label class="f">Naam + voornaam<input type="text" id="naam" autocomplete="name" maxlength="80" required></label>
-          <label class="f">E-mailadres<input type="email" id="email" autocomplete="email" maxlength="120" required></label>
-          <label class="f">Gsm <span class="opt">(optioneel)</span><input type="tel" id="gsm" autocomplete="tel" maxlength="30"></label>
+          <div class="f"><label for="email">E-mailadres</label><input type="email" id="email" autocomplete="email" maxlength="120" required></div>
+          <div class="f"><label for="gsm">Gsm <span class="opt">(optioneel)</span></label><input type="tel" id="gsm" autocomplete="tel" maxlength="30"></div>
         </div>
         <fieldset id="fsLeider">
           <legend>Heb je de opleiding Interclubleider (Tennis en Padel Vlaanderen) gevolgd?</legend>
@@ -113,19 +131,20 @@ footer{font-size:13px;color:var(--muted);text-align:center}
       </section>
 
       <section class="step">
-        <h2><span class="n">2</span>Reeks</h2>
+        <h2><span class="n">2</span>Reeks en speelmoment</h2>
         <fieldset id="fsCat"><legend>Categorie</legend><div class="chips" id="categorieen"></div></fieldset>
         <fieldset id="fsReeks" hidden>
           <legend>Niveau <span class="hint" style="font-weight:400">· punten = som van de spelers per rotatie</span></legend>
           <div class="reeksen" id="reeksen"></div>
         </fieldset>
+        <div class="keuze" id="keuze" hidden aria-live="polite"></div>
       </section>
 
       <section class="step">
         <h2><span class="n">3</span>Teamgenoten</h2>
-        <p class="hint">Naam + voornaam zoals bij Tennis en Padel Vlaanderen. Minstens 5 teamgenoten naast jezelf, maximaal 7.</p>
+        <p class="hint" id="teamHint">Zoek elke speler in de ledenlijst. Staat iemand er niet in, kies dan "manueel invullen". Minstens 5 teamgenoten naast jezelf, maximaal 7.</p>
         <div class="team" id="team"></div>
-        <label class="f">Opmerking <span class="opt">(optioneel)</span><textarea id="opmerking" maxlength="500" placeholder="Bv. voorkeur speeldag, ploeg van vorig seizoen"></textarea></label>
+        <div class="f"><label for="opmerking">Opmerking <span class="opt">(optioneel)</span></label><textarea id="opmerking" maxlength="500" placeholder="Bv. ploeg van vorig seizoen, nieuwe leden in de ploeg"></textarea></div>
         <div class="hp" aria-hidden="true"><label>Website<input type="text" id="website" tabindex="-1" autocomplete="off"></label></div>
       </section>
 
@@ -140,7 +159,7 @@ footer{font-size:13px;color:var(--muted);text-align:center}
   <section class="step done" id="klaar" hidden aria-live="polite">
     <h2><span class="n">✓</span>Inschrijving ontvangen</h2>
     <div class="ref"><code id="refCode"></code><button type="button" class="ghost" id="kopieer">Kopieer referentie</button></div>
-    <p class="hint" id="refHint">Bewaar deze referentie. Vermeld ze bij de betaling en in mails over deze ploeg.</p>
+    <p class="hint">Bewaar deze referentie. Vermeld ze bij de betaling en in mails over deze ploeg.</p>
     <dl class="sum" id="samenvatting"></dl>
     <div id="betaal" hidden class="actions">
       <p id="betaalTekst" style="margin:0"></p>
@@ -157,15 +176,16 @@ footer{font-size:13px;color:var(--muted);text-align:center}
 (function(){
   "use strict";
   const SUPABASE_URL = "https://povgjkvmzfrhhaxfanwn.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_LfcbY6X1DgOBFW1rH3Umnw__RdObpur"; // publieke sleutel: geeft enkel toegang tot de 2 inschrijvingsfuncties
+  const SUPABASE_KEY = "sb_publishable_LfcbY6X1DgOBFW1rH3Umnw__RdObpur"; // publieke sleutel: enkel toegang tot de inschrijvingsfuncties
   const MIN_TEAM = 5, MAX_TEAM = 7;
-
   const CAT_NAAM = {"PADEL OPEN":"Open","PADEL DAMES":"Dames","PADEL GEMENGD":"Gemengd","PADEL OPEN 40":"Open 40+","PADEL DAMES 40":"Dames 40+"};
   const $ = id => document.getElementById(id);
   let periodes = [], periode = null, gekozenCat = null;
+  let kapitein = null; const team = [];
 
-  async function rpc(fn, body){
+  async function rpc(fn, body, signal){
     const ctrl = new AbortController(); const t = setTimeout(()=>ctrl.abort(), 15000);
+    if(signal) signal.addEventListener("abort", ()=>ctrl.abort());
     try{
       const r = await fetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
         method:"POST", signal:ctrl.signal,
@@ -173,144 +193,224 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         body: JSON.stringify(body||{})
       });
       const data = await r.json().catch(()=>null);
-      if(!r.ok){ throw new Error((data && (data.message||data.hint)) || ("Fout " + r.status)); }
+      if(!r.ok) throw new Error((data && (data.message||data.hint)) || ("Fout " + r.status));
       return data;
     } finally { clearTimeout(t); }
   }
-
   function el(tag, attrs, ...kids){
     const e = document.createElement(tag);
     for(const k in (attrs||{})){ if(k==="text") e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); }
     kids.forEach(c => c && e.appendChild(c));
     return e;
   }
-  function euro(n){ return new Intl.NumberFormat("nl-BE",{style:"currency",currency:"EUR"}).format(n); }
-  function datum(d){ return new Date(d+"T12:00:00").toLocaleDateString("nl-BE",{day:"numeric",month:"long",year:"numeric"}); }
-  function reeksNaam(r){ return /^\d{2,}$/.test(r.afdeling) ? "P" + r.afdeling : "Reeks " + r.afdeling; }
-  function catKey(r){ return r.competitie + "|" + r.categorie; }
+  const euro = n => new Intl.NumberFormat("nl-BE",{style:"currency",currency:"EUR"}).format(n);
+  const datum = d => new Date(d+"T12:00:00").toLocaleDateString("nl-BE",{day:"numeric",month:"long",year:"numeric"});
+  const reeksNaam = r => /^\d{2,}$/.test(r.afdeling) ? "P" + r.afdeling : "Reeks " + r.afdeling;
+  const catKey = r => r.competitie + "|" + r.categorie;
 
+  /* ---------- Ledenzoeker ---------- */
+  function ledenVeld(id, label, verplicht){
+    const st = { id:id, speler_id:null, naam:"", modus:"zoek" }; // modus: zoek | lid | manueel
+    const wrap = el("div",{class:"f lid"});
+    const lab = el("label",{for:id}); lab.textContent = label + " ";
+    if(!verplicht) lab.appendChild(el("span",{class:"opt",text:"(optioneel)"}));
+    const inp = el("input",{type:"text",id:id,maxlength:"80",autocomplete:"off",role:"combobox","aria-autocomplete":"list","aria-expanded":"false","aria-controls":id+"-lijst",placeholder:"Typ minstens 3 letters van de naam"});
+    const wis = el("button",{type:"button",class:"ghost",hidden:"",text:"Wijzig"});
+    const rij = el("div",{class:"rij"}, inp, wis);
+    const badge = el("span",{class:"badge",hidden:""});
+    const lijst = el("ul",{class:"lijst",id:id+"-lijst",role:"listbox",hidden:""});
+    wrap.append(lab, rij, badge, lijst);
+
+    let timer = null, ctrl = null, items = [], actief = -1;
+    function sluit(){ lijst.hidden = true; inp.setAttribute("aria-expanded","false"); actief = -1; }
+    function zet(modus, naam, sid){
+      st.modus = modus; st.naam = naam; st.speler_id = sid;
+      inp.value = naam; inp.removeAttribute("aria-invalid");
+      if(modus==="lid"){ inp.readOnly = true; wis.hidden = false; badge.hidden = false; badge.className = "badge ok"; badge.textContent = "Lid " + (periode ? periode.leden_jaar : ""); }
+      else if(modus==="manueel"){ inp.readOnly = false; wis.hidden = false; badge.hidden = false; badge.className = "badge man"; badge.textContent = "Manueel ingevuld, wordt nagekeken"; inp.placeholder = "Naam + voornaam"; }
+      else { inp.readOnly = false; wis.hidden = true; badge.hidden = true; inp.placeholder = "Typ minstens 3 letters van de naam"; }
+      sluit();
+    }
+    function toon(res, q){
+      lijst.textContent = ""; items = [];
+      if(res.length===0) lijst.appendChild(el("li",{class:"info",text:"Geen lid gevonden met “" + q + "”."}));
+      res.forEach((r,i) => {
+        const li = el("li",{role:"option",id:id+"-o"+i,"aria-selected":"false",text:r.naam});
+        li.addEventListener("mousedown", e => { e.preventDefault(); zet("lid", r.naam, r.speler_id); });
+        lijst.appendChild(li); items.push(li);
+      });
+      const man = el("li",{role:"option",class:"man",id:id+"-om","aria-selected":"false",text:"Niet gevonden? “" + q + "” manueel invullen"});
+      man.addEventListener("mousedown", e => { e.preventDefault(); zet("manueel", inp.value.trim(), null); inp.focus(); });
+      lijst.appendChild(man); items.push(man);
+      lijst.hidden = false; inp.setAttribute("aria-expanded","true");
+    }
+    inp.addEventListener("input", () => {
+      if(st.modus==="manueel"){ st.naam = inp.value.trim(); return; }
+      st.modus = "zoek"; st.speler_id = null; st.naam = inp.value.trim();
+      clearTimeout(timer); if(ctrl) ctrl.abort();
+      const q = inp.value.trim();
+      if(q.replace(/\s/g,"").length < 3){ sluit(); return; }
+      timer = setTimeout(async () => {
+        ctrl = new AbortController();
+        try{ const res = await rpc("inschrijving_zoek_lid", {p_periode_id: periode.id, p_zoek: q}, ctrl.signal); if(inp.value.trim()===q) toon(res||[], q); }
+        catch(e){ if(e.name!=="AbortError"){ lijst.textContent=""; lijst.appendChild(el("li",{class:"info",text:"Zoeken lukt niet. Kies manueel invullen."})); items=[]; const man=el("li",{role:"option",class:"man",text:"Manueel invullen"}); man.addEventListener("mousedown",ev=>{ev.preventDefault();zet("manueel",inp.value.trim(),null);}); lijst.appendChild(man); items.push(man); lijst.hidden=false; } }
+      }, 250);
+    });
+    inp.addEventListener("keydown", e => {
+      if(lijst.hidden || !items.length) return;
+      if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+        e.preventDefault();
+        actief = (actief + (e.key==="ArrowDown"?1:-1) + items.length) % items.length;
+        items.forEach((li,i)=>li.setAttribute("aria-selected", i===actief ? "true":"false"));
+        inp.setAttribute("aria-activedescendant", items[actief].id||""); items[actief].scrollIntoView({block:"nearest"});
+      } else if(e.key==="Enter" && actief>=0){
+        e.preventDefault(); items[actief].dispatchEvent(new MouseEvent("mousedown"));
+      } else if(e.key==="Escape"){ sluit(); }
+    });
+    inp.addEventListener("blur", () => setTimeout(sluit, 120));
+    wis.addEventListener("click", () => { zet("zoek","",null); inp.focus(); });
+    st.el = wrap; st.input = inp; st.reset = () => zet("zoek","",null);
+    return st;
+  }
+
+  /* ---------- Periode en reeksen ---------- */
   function toonPeriode(p){
     periode = p; gekozenCat = null;
     $("titel").textContent = "Inschrijving " + p.seizoen.toLowerCase() + "sinterclub " + p.jaar;
     const info = [];
-    if(p.voorlopig) info.push("De reeksen zijn voorlopig overgenomen uit het reglement " + p.reeks_jaar + ". Wijzigingen volgen zodra Tennis en Padel Vlaanderen het nieuwe reglement publiceert.");
+    if(p.voorlopig) info.push("De reeksen en speelmomenten zijn voorlopig overgenomen uit het reglement " + p.reeks_jaar + ". Wijzigingen volgen zodra Tennis en Padel Vlaanderen het nieuwe reglement publiceert.");
     if(p.deadline) info.push("Inschrijven kan tot en met " + datum(p.deadline) + ".");
     if(p.bedrag_eur != null) info.push("Inschrijvingsgeld: " + euro(p.bedrag_eur) + (p.bedrag_per==="speler" ? " per speler." : " per ploeg."));
-    $("periodeInfo").textContent = info.join(" ");
-    $("periodeInfo").hidden = info.length===0;
+    info.push("Spelers zoek je in de ledenlijst " + p.leden_jaar + ".");
+    $("periodeInfo").textContent = info.join(" "); $("periodeInfo").hidden = false;
 
-    const cats = []; const seen = new Set();
+    const cats = [], seen = new Set();
     p.reeksen.forEach(r => { const k = catKey(r); if(!seen.has(k)){ seen.add(k); cats.push(r); } });
     const multiComp = new Set(p.reeksen.map(r=>r.competitie)).size > 1;
     const box = $("categorieen"); box.textContent = "";
     cats.forEach((r,i) => {
-      const id = "cat"+i;
-      const lab = (CAT_NAAM[r.categorie]||r.categorie) + (multiComp ? " · " + r.competitie.replace(/^Padel /,"") : "");
-      const inp = el("input",{type:"radio",name:"categorie",id:id,value:catKey(r)});
+      const inp = el("input",{type:"radio",name:"categorie",id:"cat"+i,value:catKey(r)});
       inp.addEventListener("change", ()=>{ gekozenCat = inp.value; toonReeksen(); });
-      box.appendChild(el("label",{class:"chip"}, inp, el("span",{text:lab})));
+      box.appendChild(el("label",{class:"chip"}, inp, el("span",{text:(CAT_NAAM[r.categorie]||r.categorie) + (multiComp ? " · " + r.competitie.replace(/^Padel /,"") : "")})));
     });
-    $("reeksen").textContent = ""; $("fsReeks").hidden = true;
+    $("reeksen").textContent = ""; $("fsReeks").hidden = true; $("keuze").hidden = true;
   }
-
   function toonReeksen(){
-    const box = $("reeksen"); box.textContent = "";
+    const box = $("reeksen"); box.textContent = ""; $("keuze").hidden = true;
     periode.reeksen.filter(r => catKey(r)===gekozenCat).forEach((r,i) => {
       const inp = el("input",{type:"radio",name:"reeks",id:"reeks"+i,value:r.reeks});
-      const span = el("span",{}, el("b",{text:reeksNaam(r)}),
+      inp.addEventListener("change", () => toonKeuze(r));
+      box.appendChild(el("label",{class:"reeks"}, inp, el("span",{},
+        el("b",{text:reeksNaam(r)}),
+        el("span",{class:"dag",text:r.dag_uur || "Speelmoment volgt"}),
         el("small",{text:r.punten_min + "–" + r.punten_max + " ptn"}),
-        r.dag_uur ? el("small",{text:r.dag_uur}) : null,
-        r.min_leeftijd >= 18 ? el("small",{text:"vanaf " + r.min_leeftijd + " jaar"}) : null);
-      box.appendChild(el("label",{class:"reeks"}, inp, span));
+        r.min_leeftijd >= 18 ? el("small",{text:"vanaf " + r.min_leeftijd + " jaar"}) : null)));
     });
     $("fsReeks").hidden = false;
   }
-
-  function bouwTeam(){
-    const box = $("team"); box.textContent = "";
-    for(let i=1;i<=MAX_TEAM;i++){
-      const inp = el("input",{type:"text",id:"tg"+i,maxlength:"80",autocomplete:"off"});
-      if(i<=MIN_TEAM) inp.required = true;
-      box.appendChild(el("label",{class:"f"}, document.createTextNode("Teamgenoot " + i + " "),
-        i>MIN_TEAM ? el("span",{class:"opt",text:"(optioneel)"}) : null, inp));
-    }
+  function toonKeuze(r){
+    const k = $("keuze"); k.textContent = "";
+    k.append("Je schrijft in voor ", el("strong",{text:(CAT_NAAM[r.categorie]||r.categorie) + " " + reeksNaam(r)}));
+    if(r.dag_uur){
+      k.append(". Standaard speelmoment: ", el("strong",{text:r.dag_uur}));
+      if(r.afwijkend) k.append(" (de thuisploeg mag starten " + r.afwijkend + ")");
+      k.append(". Controleer of je ploeg dan beschikbaar is.");
+    } else k.append(". Het speelmoment wordt later bevestigd.");
+    k.hidden = false;
   }
 
+  /* ---------- Team ---------- */
+  let kapiteinVeld;
+  function bouwVelden(){
+    $("kapiteinVeld").textContent = "";
+    kapiteinVeld = ledenVeld("kapitein","Jouw naam (kapitein)",true);
+    $("kapiteinVeld").appendChild(kapiteinVeld.el);
+    const box = $("team"); box.textContent = ""; team.length = 0;
+    for(let i=1;i<=MAX_TEAM;i++){ const v = ledenVeld("tg"+i,"Teamgenoot " + i, i<=MIN_TEAM); team.push(v); box.appendChild(v.el); }
+  }
+
+  /* ---------- Verzenden ---------- */
   function fout(msg, veld){
     const f = $("formFout"); f.textContent = msg; f.hidden = false;
     if(veld){ veld.setAttribute("aria-invalid","true"); veld.focus(); }
   }
-
+  function waarde(v){ // geeft {naam, speler_id} of null
+    const t = v.input.value.trim();
+    if(v.modus==="lid") return {naam:v.naam, speler_id:v.speler_id};
+    if(t==="") return null;
+    return {naam:t, speler_id:null, open: v.modus==="zoek"};
+  }
   async function verzend(e){
     e.preventDefault();
     document.querySelectorAll("[aria-invalid]").forEach(x=>x.removeAttribute("aria-invalid"));
     $("formFout").hidden = true;
-    const naam = $("naam").value.trim(), email = $("email").value.trim();
+    const kap = waarde(kapiteinVeld), email = $("email").value.trim();
     const leider = document.querySelector("input[name=leider]:checked");
     const reeks = document.querySelector("input[name=reeks]:checked");
-    const team = []; let eersteLeeg = null;
-    for(let i=1;i<=MAX_TEAM;i++){ const v = $("tg"+i).value.trim(); if(v) team.push(v); else if(i<=MIN_TEAM && !eersteLeeg) eersteLeeg = $("tg"+i); }
 
-    if(naam.length < 3) return fout("Vul je naam en voornaam in.", $("naam"));
+    if(!kap || kap.naam.length < 3) return fout("Zoek je naam in de ledenlijst of vul ze manueel in.", kapiteinVeld.input);
+    if(kap.open) return fout("Kies je naam uit de lijst, of kies “manueel invullen” als je er niet in staat.", kapiteinVeld.input);
     if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fout("Vul een geldig e-mailadres in.", $("email"));
     if(!leider) return fout("Duid aan of je de opleiding Interclubleider gevolgd hebt.", $("leiderJa"));
     if(!reeks) return fout(gekozenCat ? "Kies een niveau." : "Kies een categorie en een niveau.", document.querySelector(gekozenCat ? "input[name=reeks]" : "input[name=categorie]"));
-    if(team.length < MIN_TEAM) return fout("Vul minstens " + MIN_TEAM + " teamgenoten in.", eersteLeeg);
+
+    const namen = [], ids = [];
+    for(const v of team){
+      const w = waarde(v);
+      if(!w) continue;
+      if(w.open) return fout("Kies " + v.input.value.trim() + " uit de lijst, of kies “manueel invullen”.", v.input);
+      namen.push(w.naam); ids.push(w.speler_id);
+    }
+    if(namen.length < MIN_TEAM){ const leeg = team.find(v => !waarde(v)); return fout("Vul minstens " + MIN_TEAM + " teamgenoten in.", leeg && leeg.input); }
+    const alle = [kap.speler_id, ...ids].filter(x => x != null);
+    if(new Set(alle).size !== alle.length) return fout("Dezelfde speler staat er meer dan één keer in.");
 
     const knop = $("verzend"); knop.disabled = true; knop.textContent = "Bezig met verzenden…";
     try{
-      const res = await rpc("inschrijving_toevoegen", {
-        p_periode_id: periode.id, p_reeks: reeks.value, p_kapitein_naam: naam, p_kapitein_email: email,
-        p_kapitein_gsm: $("gsm").value.trim() || null, p_interclubleider: leider.value==="ja",
-        p_teamgenoten: team, p_opmerking: $("opmerking").value.trim() || null, p_website: $("website").value
+      const res = await rpc("inschrijving_toevoegen_v2", {
+        p_periode_id: periode.id, p_reeks: reeks.value,
+        p_kapitein_naam: kap.naam, p_kapitein_speler_id: kap.speler_id,
+        p_kapitein_email: email, p_kapitein_gsm: $("gsm").value.trim() || null, p_interclubleider: leider.value==="ja",
+        p_teamgenoten: namen, p_teamgenoten_ids: ids,
+        p_opmerking: $("opmerking").value.trim() || null, p_website: $("website").value
       });
-      toonKlaar(res, reeks.value, naam, team.length + 1);
+      toonKlaar(res, reeks.value, namen.length + 1);
     }catch(err){
       fout(err.name==="AbortError" ? "De server antwoordt niet. Controleer je internetverbinding en probeer opnieuw." : "Verzenden lukte niet: " + err.message);
-    }finally{
-      knop.disabled = false; knop.textContent = "Ploeg inschrijven";
-    }
+    }finally{ knop.disabled = false; knop.textContent = "Ploeg inschrijven"; }
   }
-
-  function toonKlaar(res, reeksId, naam, spelers){
+  function toonKlaar(res, reeksId, spelers){
     const r = periode.reeksen.find(x => x.reeks===reeksId);
     $("refCode").textContent = res.referentie;
     const sum = $("samenvatting"); sum.textContent = "";
     [["Interclub", periode.seizoen + " " + periode.jaar],
-     ["Categorie", (CAT_NAAM[r.categorie]||r.categorie) + " · " + r.competitie],
-     ["Niveau", reeksNaam(r) + " (" + r.punten_min + "–" + r.punten_max + " ptn)"],
-     ["Kapitein", naam],
+     ["Reeks", (CAT_NAAM[r.categorie]||r.categorie) + " " + reeksNaam(r) + " (" + r.punten_min + "–" + r.punten_max + " ptn)"],
+     ["Speelmoment", r.dag_uur || "volgt"],
+     ["Kapitein", res.kapitein_naam],
      ["Spelers", String(spelers)]].forEach(([k,v]) => { sum.appendChild(el("dt",{text:k})); sum.appendChild(el("dd",{text:v})); });
-
     if(res.mollie_link){
       let tekst = "Betaal het inschrijvingsgeld via Mollie en vermeld referentie " + res.referentie + ".";
       if(res.bedrag_eur != null){
         const totaal = res.bedrag_per==="speler" ? res.bedrag_eur * spelers : res.bedrag_eur;
         tekst = "Te betalen: " + euro(totaal) + (res.bedrag_per==="speler" ? " (" + spelers + " spelers × " + euro(res.bedrag_eur) + ")" : "") + ". " + tekst;
       }
-      $("betaalTekst").textContent = tekst;
-      $("betaalLink").href = res.mollie_link;
+      $("betaalTekst").textContent = tekst; $("betaalLink").href = res.mollie_link;
       $("betaal").hidden = false; $("geenBetaling").hidden = true;
     } else { $("betaal").hidden = true; $("geenBetaling").hidden = false; }
-
-    $("form").hidden = true; $("klaar").hidden = false;
-    window.scrollTo({top:0, behavior:"smooth"});
+    $("form").hidden = true; $("klaar").hidden = false; window.scrollTo({top:0, behavior:"smooth"});
   }
 
   $("kopieer").addEventListener("click", async () => {
-    const t = $("refCode").textContent;
-    try{ await navigator.clipboard.writeText(t); $("kopieer").textContent = "Gekopieerd"; }
+    try{ await navigator.clipboard.writeText($("refCode").textContent); $("kopieer").textContent = "Gekopieerd"; }
     catch(_){ const s = window.getSelection(), rg = document.createRange(); rg.selectNodeContents($("refCode")); s.removeAllRanges(); s.addRange(rg); $("kopieer").textContent = "Geselecteerd, kopieer met Ctrl+C"; }
   });
   $("nogEen").addEventListener("click", () => {
-    $("form").reset(); toonPeriode(periode); bouwTeam();
-    $("klaar").hidden = true; $("form").hidden = false; $("kopieer").textContent = "Kopieer referentie";
-    window.scrollTo({top:0});
+    $("form").reset(); bouwVelden(); toonPeriode(periode);
+    $("klaar").hidden = true; $("form").hidden = false; $("kopieer").textContent = "Kopieer referentie"; window.scrollTo({top:0});
   });
   $("form").addEventListener("submit", verzend);
 
   (async function start(){
-    bouwTeam();
     try{
       periodes = await rpc("inschrijving_config");
       $("laden").hidden = true;
@@ -319,16 +419,15 @@ footer{font-size:13px;color:var(--muted);text-align:center}
         $("fout").hidden = false; return;
       }
       if(periodes.length > 1){
-        const box = $("periodes");
         periodes.forEach((p,i) => {
           const inp = el("input",{type:"radio",name:"periode",id:"per"+i,value:p.id});
           if(i===0) inp.checked = true;
-          inp.addEventListener("change", ()=>toonPeriode(p));
-          box.appendChild(el("label",{class:"chip"}, inp, el("span",{text:p.seizoen + " " + p.jaar})));
+          inp.addEventListener("change", ()=>{ bouwVelden(); toonPeriode(p); });
+          $("periodes").appendChild(el("label",{class:"chip"}, inp, el("span",{text:p.seizoen + " " + p.jaar})));
         });
         $("stapPeriode").hidden = false;
       }
-      toonPeriode(periodes[0]);
+      toonPeriode(periodes[0]); bouwVelden();
       $("form").hidden = false;
     }catch(err){
       $("laden").hidden = true;
